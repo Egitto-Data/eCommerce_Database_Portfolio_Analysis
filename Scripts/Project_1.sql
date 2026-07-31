@@ -97,59 +97,8 @@ LEFT JOIN orders o
 WHERE ws.created_at < '2012-11-27'
 GROUP BY YEAR(ws.created_at), MONTH(ws.created_at);
 
-
 -- -----------------------------------------------------------------------------
--- Q6: Landing Page A/B Test Lift & Incremental Order Value
--- Purpose: Estimate incremental orders gained from switching traffic to /lander-1.
--- -----------------------------------------------------------------------------
-WITH test_sessions AS (
-    SELECT 
-        ws.website_session_id,
-        MIN(wpv.pageview_url)                                          AS landing_page,
-        o.order_id
-    FROM website_sessions ws
-    INNER JOIN website_pageviews wpv 
-            ON ws.website_session_id = wpv.website_session_id
-    LEFT JOIN orders o 
-           ON ws.website_session_id = o.website_session_id
-    WHERE ws.created_at >= '2012-06-19' AND ws.created_at <= '2012-07-28'
-      AND ws.utm_source = 'gsearch' AND ws.utm_campaign = 'nonbrand'
-    GROUP BY ws.website_session_id, o.order_id
-),
-test_conversion AS (
-    SELECT 
-        landing_page,
-        COUNT(website_session_id)                                      AS sessions,
-        COUNT(order_id)                                                AS orders,
-        COUNT(order_id) * 1.0 / COUNT(website_session_id)              AS conv_rate
-    FROM test_sessions
-    WHERE landing_page IN ('/home', '/lander-1')
-    GROUP BY landing_page
-),
-post_test_volume AS (
-    -- Sessions after home page was phased out (session_id > 17145)
-    SELECT COUNT(website_session_id)                                   AS post_test_sessions
-    FROM website_sessions
-    WHERE created_at < '2012-11-27'
-      AND utm_source = 'gsearch' AND utm_campaign = 'nonbrand'
-      AND website_session_id > 17145
-)
-SELECT 
-    p.post_test_sessions,
-    MAX(CASE WHEN landing_page = '/home'     THEN conv_rate END)       AS home_conv_rt,
-    MAX(CASE WHEN landing_page = '/lander-1' THEN conv_rate END)       AS lander_conv_rt,
-    MAX(CASE WHEN landing_page = '/lander-1' THEN conv_rate END) - 
-    MAX(CASE WHEN landing_page = '/home'     THEN conv_rate END)       AS lift,
-    ROUND(p.post_test_sessions * (
-        MAX(CASE WHEN landing_page = '/lander-1' THEN conv_rate END) - 
-        MAX(CASE WHEN landing_page = '/home'     THEN conv_rate END)
-    ), 0)                                                              AS incremental_orders
-FROM test_conversion, post_test_volume p
-GROUP BY p.post_test_sessions;
-
-
--- -----------------------------------------------------------------------------
--- Q7: Full Landing Page Conversion Funnel Analysis (/home vs /lander-1)
+-- Q6: Full Landing Page Conversion Funnel Analysis (/home vs /lander-1)
 -- Purpose: Identify step-by-step click-through rates across both funnels.
 -- -----------------------------------------------------------------------------
 WITH funnel_flags AS (
@@ -194,7 +143,7 @@ GROUP BY 1;
 
 
 -- -----------------------------------------------------------------------------
--- Q8: Billing Page A/B Test Revenue Lift (/billing vs /billing-2)
+-- Q7: Billing Page A/B Test Revenue Lift (/billing vs /billing-2)
 -- Purpose: Calculate Revenue Per Billing Page Visit lift and monthly impact.
 -- -----------------------------------------------------------------------------
 WITH test_sessions AS (
