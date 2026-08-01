@@ -103,7 +103,7 @@ This structure mirrors real-world eCommerce databases, making it an excellent fo
 1. Download the dataset from Kaggle: [Maven Fuzzy Factory Database](https://www.kaggle.com/datasets/mohammedgalex/maven-fuzzy-factory-database).  
 2. Import the database into your SQL environment (MySQL, PostgreSQL, or SQL Server).  
 3. Explore the schema using `DESCRIBE` or `INFORMATION_SCHEMA` queries.  
-4. Run queries from the `/queries` folder to practice traffic source analysis, bid optimization, trend analysis, product sales, repeat behavior, channel portfolio optimization, and seasonality insights.  
+4. Run queries from the `/Scripts` folder to practice traffic source analysis, bid optimization, trend analysis, product sales, repeat behavior, channel portfolio optimization, and seasonality insights.  
 
 ---
 
