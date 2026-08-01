@@ -83,9 +83,7 @@ The database contains the following core tables:
 
 ## ⚙️ Project Structure
 
-- **/docs** → Documentation of schema, table descriptions, and analytical concepts.  
-- **/queries** → SQL scripts for traffic source analysis, bid optimization, trend analysis, product sales, repeat behavior, channel portfolio optimization, and seasonality.  
-- **/reports** → Example outputs, summaries, and visualizations (Power BI, Excel, or SQL-based).  
+- **/Scripts** → SQL scripts for traffic source analysis, bid optimization, trend analysis, product sales, repeat behavior, channel portfolio optimization, and seasonality.   
 - **README.md** → Project overview and dataset reference.  
 
 ---
