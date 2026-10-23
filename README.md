@@ -40,7 +40,7 @@ The database contains the following core tables:
 - Identify the most viewed pages to prioritize improvements.  
 - Find the most common **entry pages** (landing pages).  
 - Evaluate page performance against business objectives.  
-- Use **temporary tables** for multi-step analysis.  
+- Use **CTAs** for multi-step analysis.  
 
 ### **Product Sales Analysis**
 - Understand the contribution of each product to overall business performance.  
