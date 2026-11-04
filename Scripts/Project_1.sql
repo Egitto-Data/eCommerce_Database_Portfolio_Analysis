@@ -1,10 +1,10 @@
 /* =============================================================================
-   PROJECT-1 E-COMMERCE PERFORMANCE ANALYSIS & AB TESTING EVALUATION
+   PROJECT-1 E-COMMERCE PERFORMANCE ANALYSIS & A/B TESTING EVALUATION
    
    Purpose: 
      Comprehensive analytical suite evaluating website traffic volume, acquisition 
      channels, funnel conversion rates, and the financial impact of A/B tests 
-     (custom landing pages & billing page optimization) prior to 2012-11-27.
+     (custom landing pages ) prior to 2012-11-27.
    ============================================================================= */
 
 
@@ -101,87 +101,83 @@ GROUP BY YEAR(ws.created_at), MONTH(ws.created_at);
 -- Q6: Full Landing Page Conversion Funnel Analysis (/home vs /lander-1)
 -- Purpose: Identify step-by-step click-through rates across both funnels.
 -- -----------------------------------------------------------------------------
-WITH funnel_flags AS (
+
+WITH first_pageviews AS (
+    -- Step 1: Identify the exact first pageview (entry point) for each session
     SELECT 
         ws.website_session_id,
-        MAX(CASE WHEN wpv.pageview_url = '/home'                      THEN 1 ELSE 0 END) AS saw_home,
-        MAX(CASE WHEN wpv.pageview_url = '/lander-1'                  THEN 1 ELSE 0 END) AS saw_lander,
-        MAX(CASE WHEN wpv.pageview_url = '/products'                  THEN 1 ELSE 0 END) AS saw_products,
-        MAX(CASE WHEN wpv.pageview_url = '/the-original-mr-fuzzy'     THEN 1 ELSE 0 END) AS saw_mrfuzzy,
-        MAX(CASE WHEN wpv.pageview_url = '/cart'                      THEN 1 ELSE 0 END) AS saw_cart,
-        MAX(CASE WHEN wpv.pageview_url = '/shipping'                  THEN 1 ELSE 0 END) AS saw_shipping,
-        MAX(CASE WHEN wpv.pageview_url = '/billing'                   THEN 1 ELSE 0 END) AS saw_billing,
-        MAX(CASE WHEN wpv.pageview_url = '/thank-you-for-your-order' THEN 1 ELSE 0 END) AS saw_thankyou
+        MIN(wp.website_pageview_id) AS lander_pageview_id
     FROM website_sessions ws
-    INNER JOIN website_pageviews wpv 
-            ON ws.website_session_id = wpv.website_session_id
-    WHERE ws.created_at >= '2012-06-19' AND ws.created_at <= '2012-07-28'
-      AND ws.utm_source = 'gsearch' AND ws.utm_campaign = 'nonbrand'
+    JOIN website_pageviews wp 
+        ON ws.website_session_id = wp.website_session_id
+    WHERE ws.utm_source = 'gsearch'
+      AND ws.utm_campaign = 'nonbrand'
+      AND ws.created_at >= '2012-06-19'
+      AND ws.created_at <  '2012-07-28'
     GROUP BY ws.website_session_id
+),
+session_landing_pages AS (
+    -- Step 2: Map those entry pageviews specifically to /home or /lander-1
+    SELECT 
+        fp.website_session_id,
+        fp.lander_pageview_id,
+        wp.pageview_url AS landing_page
+    FROM first_pageviews fp
+    JOIN website_pageviews wp 
+        ON fp.lander_pageview_id = wp.website_pageview_id
+    WHERE wp.pageview_url IN ('/home', '/lander-1')
+),
+session_funnel_flags AS (
+    -- Step 3: Evaluate forward-moving funnel step progression per session
+    SELECT 
+        slp.website_session_id,
+        slp.landing_page,
+        MAX(CASE WHEN wp.pageview_url = '/products'               THEN 1 ELSE 0 END) AS products_made_it,
+        MAX(CASE WHEN wp.pageview_url = '/the-original-mr-fuzzy' THEN 1 ELSE 0 END) AS mrfuzzy_made_it,
+        MAX(CASE WHEN wp.pageview_url = '/cart'                   THEN 1 ELSE 0 END) AS cart_made_it,
+        MAX(CASE WHEN wp.pageview_url = '/shipping'               THEN 1 ELSE 0 END) AS shipping_made_it,
+        MAX(CASE WHEN wp.pageview_url = '/billing'                THEN 1 ELSE 0 END) AS billing_made_it,
+        MAX(CASE WHEN wp.pageview_url = '/thank-you-for-your-order' THEN 1 ELSE 0 END) AS thank_you_made_it
+    FROM session_landing_pages slp
+    LEFT JOIN website_pageviews wp
+        ON slp.website_session_id = wp.website_session_id
+       AND wp.website_pageview_id > slp.lander_pageview_id  -- Enforces strict chronological order
+    GROUP BY slp.website_session_id, slp.landing_page
 )
+
+-- Step 4: Aggregate volumes and compute step-by-step CTRs side-by-side
 SELECT 
-    CASE 
-        WHEN saw_home = 1   THEN '/home'
-        WHEN saw_lander = 1 THEN '/lander-1'
-    END                                                                AS landing_page,
-    COUNT(website_session_id)                                          AS total_sessions,
-    SUM(saw_products)                                                  AS to_products,
-    SUM(saw_mrfuzzy)                                                   AS to_mrfuzzy,
-    SUM(saw_cart)                                                      AS to_cart,
-    SUM(saw_shipping)                                                  AS to_shipping,
-    SUM(saw_billing)                                                   AS to_billing,
-    SUM(saw_thankyou)                                                  AS to_thankyou,
-    ROUND(SUM(saw_products) * 100.0 / COUNT(website_session_id), 1)    AS lander_click_rate_pct,
-    ROUND(SUM(saw_mrfuzzy)  * 100.0 / NULLIF(SUM(saw_products), 0), 1) AS products_click_rate_pct,
-    ROUND(SUM(saw_cart)     * 100.0 / NULLIF(SUM(saw_mrfuzzy), 0), 1)  AS mrfuzzy_click_rate_pct,
-    ROUND(SUM(saw_shipping) * 100.0 / NULLIF(SUM(saw_cart), 0), 1)     AS cart_click_rate_pct,
-    ROUND(SUM(saw_billing)  * 100.0 / NULLIF(SUM(saw_shipping), 0), 1)  AS shipping_click_rate_pct,
-    ROUND(SUM(saw_thankyou) * 100.0 / NULLIF(SUM(saw_billing), 0), 1)   AS billing_click_rate_pct
-FROM funnel_flags
-WHERE saw_home = 1 OR saw_lander = 1
-GROUP BY 1;
+    landing_page,
+    COUNT(DISTINCT website_session_id)                                         AS lander_sessions,
+    COUNT(DISTINCT CASE WHEN products_made_it = 1  THEN website_session_id END) AS products_sessions,
+    COUNT(DISTINCT CASE WHEN mrfuzzy_made_it = 1   THEN website_session_id END) AS mrfuzzy_sessions,
+    COUNT(DISTINCT CASE WHEN cart_made_it = 1      THEN website_session_id END) AS cart_sessions,
+    COUNT(DISTINCT CASE WHEN shipping_made_it = 1  THEN website_session_id END) AS shipping_sessions,
+    COUNT(DISTINCT CASE WHEN billing_made_it = 1   THEN website_session_id END) AS billing_sessions,
+    COUNT(DISTINCT CASE WHEN thank_you_made_it = 1 THEN website_session_id END) AS thank_you_sessions,
+
+    -- Step-by-Step Click-Through Rates (CTR)
+    COUNT(DISTINCT CASE WHEN products_made_it = 1 THEN website_session_id END) 
+        * 1.0 / COUNT(DISTINCT website_session_id)                             AS lander_ctr,
+        
+    COUNT(DISTINCT CASE WHEN mrfuzzy_made_it = 1 THEN website_session_id END) 
+        * 1.0 / NULLIF(COUNT(DISTINCT CASE WHEN products_made_it = 1 THEN website_session_id END), 0) AS products_ctr,
+        
+    COUNT(DISTINCT CASE WHEN cart_made_it = 1 THEN website_session_id END) 
+        * 1.0 / NULLIF(COUNT(DISTINCT CASE WHEN mrfuzzy_made_it = 1 THEN website_session_id END), 0) AS mrfuzzy_ctr,
+        
+    COUNT(DISTINCT CASE WHEN shipping_made_it = 1 THEN website_session_id END) 
+        * 1.0 / NULLIF(COUNT(DISTINCT CASE WHEN cart_made_it = 1 THEN website_session_id END), 0) AS cart_ctr,
+        
+    COUNT(DISTINCT CASE WHEN billing_made_it = 1 THEN website_session_id END) 
+        * 1.0 / NULLIF(COUNT(DISTINCT CASE WHEN shipping_made_it = 1 THEN website_session_id END), 0) AS shipping_ctr,
+        
+    COUNT(DISTINCT CASE WHEN thank_you_made_it = 1 THEN website_session_id END) 
+        * 1.0 / NULLIF(COUNT(DISTINCT CASE WHEN billing_made_it = 1 THEN website_session_id END), 0) AS billing_ctr
+
+FROM session_funnel_flags
+GROUP BY landing_page
+ORDER BY landing_page DESC;
 
 
--- -----------------------------------------------------------------------------
--- Q7: Billing Page A/B Test Revenue Lift (/billing vs /billing-2)
--- Purpose: Calculate Revenue Per Billing Page Visit lift and monthly impact.
--- -----------------------------------------------------------------------------
-WITH test_sessions AS (
-    SELECT 
-        wpv.website_session_id,
-        wpv.pageview_url                                               AS billing_version,
-        o.order_id,
-        o.price_usd
-    FROM website_pageviews wpv
-    LEFT JOIN orders o 
-           ON wpv.website_session_id = o.website_session_id
-    WHERE wpv.created_at >= '2012-09-10' AND wpv.created_at < '2012-11-10'
-      AND wpv.pageview_url IN ('/billing', '/billing-2')
-),
-billing_metrics AS (
-    SELECT 
-        billing_version,
-        COUNT(website_session_id)                                      AS sessions,
-        SUM(price_usd)                                                 AS total_revenue,
-        SUM(price_usd) / COUNT(website_session_id)                     AS rev_per_page
-    FROM test_sessions
-    GROUP BY billing_version
-),
-past_month_billing AS (
-    SELECT COUNT(website_session_id)                                   AS past_month_sessions
-    FROM website_pageviews
-    WHERE pageview_url IN ('/billing', '/billing-2')
-      AND created_at BETWEEN '2012-10-27' AND '2012-11-27'
-)
-SELECT 
-    p.past_month_sessions,
-    MAX(CASE WHEN billing_version = '/billing'   THEN rev_per_page END) AS old_rev_per_page,
-    MAX(CASE WHEN billing_version = '/billing-2' THEN rev_per_page END) AS new_rev_per_page,
-    MAX(CASE WHEN billing_version = '/billing-2' THEN rev_per_page END) - 
-    MAX(CASE WHEN billing_version = '/billing'   THEN rev_per_page END) AS lift_per_page,
-    ROUND(p.past_month_sessions * (
-        MAX(CASE WHEN billing_version = '/billing-2' THEN rev_per_page END) - 
-        MAX(CASE WHEN billing_version = '/billing'   THEN rev_per_page END)
-    ), 2)                                                              AS total_monthly_value
-FROM billing_metrics, past_month_billing p
-GROUP BY p.past_month_sessions;
+
