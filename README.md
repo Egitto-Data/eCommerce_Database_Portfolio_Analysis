@@ -1,4 +1,12 @@
-# 🛒 Maven Fuzzy Factory SQL Project
+# 🛒 E-Commerce Advanced SQL Analytics Portfolio
+
+[![Database](https://img.shields.io/badge/Database-MySQL%20%7C%20Snowflake%20%7C%20BigQuery-blue?style=flat-square&logo=mysql)]()
+[![Focus](https://img.shields.io/badge/Focus-A%2FB%20Testing%20%7C%20Attribution%20%7C%20CLV-emerald?style=flat-square)]()
+[![SQL](https://img.shields.io/badge/Dialect-ANSI--SQL-orange?style=flat-square)]()
+
+A collection of production-grade SQL analytics projects analyzing web traffic acquisition, multi-step conversion funnels, A/B testing statistical significance, and customer lifetime value (CLV) using the **Maven Fuzzy Factory** relational dataset.
+
+---
 
 This project is built around the **Maven Fuzzy Factory eCommerce database**, a simplified schema designed for practicing SQL queries and analytics. It provides a realistic foundation for analyzing website traffic, customer orders, product performance, and refunds.
 
