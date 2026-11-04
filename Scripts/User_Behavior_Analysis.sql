@@ -3,7 +3,7 @@
    
    Purpose: 
      Evaluate repeat session frequency per user between 2014-01-01 and 2014-11-01 
-     to help Tom quantify customer retention and adjust marketing bidding models 
+     to help to quantify customer retention and adjust marketing bidding models 
      to account for post-acquisition repeat value.
    ============================================================================= */
 
